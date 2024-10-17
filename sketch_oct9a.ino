@@ -1,15 +1,26 @@
+#include <Servo.h>
+
 #define in1 5     // Motor 1
 #define in2 6
 #define in3 10    // Motor 2
 #define in4 11
 #define ENA 9     // Enable for Motor 1
 #define ENB 3     // Enable for Motor 2
-#define LED 13
+#define LED 13    // Status LED
+
+// Ultrasonic sensor pins
+#define trigPin A1
+#define echoPin A0
+
+// Constants
+const int obstacleThreshold = 20;  // Distance in cm to trigger obstacle avoidance
 
 String command;      // To store Bluetooth command
 int Speed = 150;     // Speed range (0 - 255)
+bool isMoving = false;  // Flag to track if a movement command was received
 
 void setup() {
+  // Motor pin setup
   pinMode(in1, OUTPUT);
   pinMode(in2, OUTPUT);
   pinMode(in3, OUTPUT);
@@ -20,41 +31,38 @@ void setup() {
   pinMode(ENB, OUTPUT);  // Set ENB for Motor 2
   digitalWrite(ENA, HIGH);  // Enable Motor 1
   digitalWrite(ENB, HIGH);  // Enable Motor 2
-  
+
+  // Ultrasonic sensor pin setup
+  pinMode(trigPin, OUTPUT);
+  pinMode(echoPin, INPUT);
+
   Serial.begin(9600);
 }
 
 void loop() {
+  // Check for Bluetooth commands
   if (Serial.available() > 0) {
     command = Serial.readStringUntil('\n');  // Read the command as a string until a newline character
     command.trim();  // Remove any extra spaces or newline characters
 
     Serial.print("Command received: ");
     Serial.println(command);  // Print the received command to the Serial Monitor
-    Serial.print("Length: ");
-    Serial.println(command.length());  // Print the length of the received command
-
-    // Print each character of the command
-    for (int i = 0; i < command.length(); i++) {
-      Serial.print("Character ");
-      Serial.print(i);
-      Serial.print(": ");
-      Serial.println(command[i]);  // Print each character
-    }
 
     Stop();  // Always stop the motors before processing a new command
+    isMoving = true;  // Set the flag to true once a valid command is received
 
-    // Compare the command string to the expected commands
+    // Handle movement commands
     if (command.equalsIgnoreCase("f")) {
-      forward();
+      moveForward();
     } else if (command.equalsIgnoreCase("b")) {
-      back();
+      moveBackward();
     } else if (command.equalsIgnoreCase("l")) {
-      left();
+      turnLeft();
     } else if (command.equalsIgnoreCase("r")) {
-      right();
+      turnRight();
     } else if (command.equalsIgnoreCase("s")) {
       Stop();
+      isMoving = false;  // Stop the movement and disable the movement flag
     } 
     // Speed control commands
     else if (command.equals("0")) {
@@ -87,30 +95,61 @@ void loop() {
     analogWrite(ENA, Speed);  // Control speed of Motor 1 (Right motor)
     analogWrite(ENB, Speed);  // Control speed of Motor 2 (Left motor)
   }
+
+  // Continuously check for obstacles, but only when the car is moving
+  if (isMoving) {
+    long distance = measureDistance();
+    if (distance < obstacleThreshold) {
+      Serial.println("Obstacle detected, moving backward");
+      moveBackward();  // Move backward when obstacle is detected
+      delay(1000);     // Move back for 1 second
+      Stop();          // Stop the car after moving backward
+      isMoving = false; // Disable movement flag to stop moving after the obstacle is avoided
+    }
+  }
 }
 
-void forward() {
+// Function to measure the distance using the ultrasonic sensor
+long measureDistance() {
+  // Send a 10 microsecond pulse to trigger the sensor
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(2);
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin, LOW);
+
+  // Measure the duration of the echo pulse
+  long duration = pulseIn(echoPin, HIGH);
+
+  // Calculate the distance based on the speed of sound
+  long distance = duration * 0.034 / 2;  // Speed of sound is 0.034 cm/us
+
+  return distance;
+}
+
+// Movement functions
+void moveForward() {
   digitalWrite(in1, HIGH);
   digitalWrite(in2, LOW);
   digitalWrite(in3, HIGH);
   digitalWrite(in4, LOW);
 }
 
-void back() {
+void moveBackward() {
   digitalWrite(in1, LOW);
   digitalWrite(in2, HIGH);
   digitalWrite(in3, LOW);
   digitalWrite(in4, HIGH);
 }
 
-void left() {
+void turnLeft() {
   digitalWrite(in1, LOW);
   digitalWrite(in2, HIGH);   // Slow down one side
   digitalWrite(in3, HIGH);
   digitalWrite(in4, LOW);
 }
 
-void right() {
+void turnRight() {
   digitalWrite(in1, HIGH);
   digitalWrite(in2, LOW);
   digitalWrite(in3, LOW);
