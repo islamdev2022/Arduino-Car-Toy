@@ -13,11 +13,12 @@
 #define echoPin A0
 
 // Constants
-const int obstacleThreshold = 20;  // Distance in cm to trigger obstacle avoidance
+const int obstacleThreshold = 10;  // Distance in cm to trigger obstacle avoidance
 
 String command;      // To store Bluetooth command
 int Speed = 150;     // Speed range (0 - 255)
 bool isMoving = false;  // Flag to track if a movement command was received
+String lastCommand;   // To store the last valid movement command
 
 void setup() {
   // Motor pin setup
@@ -42,6 +43,9 @@ void setup() {
 void loop() {
   // Check for Bluetooth commands
   if (Serial.available() > 0) {
+    long distance = measureDistance();
+    Serial.println("Distance from obstacle: ");
+    Serial.println(distance);
     command = Serial.readStringUntil('\n');  // Read the command as a string until a newline character
     command.trim();  // Remove any extra spaces or newline characters
 
@@ -54,12 +58,16 @@ void loop() {
     // Handle movement commands
     if (command.equalsIgnoreCase("f")) {
       moveForward();
+      lastCommand = "f";  // Save the last command
     } else if (command.equalsIgnoreCase("b")) {
       moveBackward();
+      lastCommand = "b";  // Save the last command
     } else if (command.equalsIgnoreCase("l")) {
       turnLeft();
+      lastCommand = "l";  // Save the last command
     } else if (command.equalsIgnoreCase("r")) {
       turnRight();
+      lastCommand = "r";  // Save the last command
     } else if (command.equalsIgnoreCase("s")) {
       Stop();
       isMoving = false;  // Stop the movement and disable the movement flag
@@ -99,12 +107,31 @@ void loop() {
   // Continuously check for obstacles, but only when the car is moving
   if (isMoving) {
     long distance = measureDistance();
+    Serial.println("Distance from obstacle: ");
+    Serial.println(distance);
     if (distance < obstacleThreshold) {
-      Serial.println("Obstacle detected, moving backward");
-      moveBackward();  // Move backward when obstacle is detected
+      Serial.println("Obstacle too close, moving backward");
+      moveBackward();  // Move backward when an obstacle is detected
       delay(1000);     // Move back for 1 second
       Stop();          // Stop the car after moving backward
       isMoving = false; // Disable movement flag to stop moving after the obstacle is avoided
+
+      // Recheck for obstacles and resume movement after avoiding
+      delay(1000); // Pause before resuming
+      distance = measureDistance(); // Measure distance again
+      if (distance >= obstacleThreshold) {
+        // Resume last command if no obstacle is detected
+        if (lastCommand.equals("f")) {
+          moveForward();
+        } else if (lastCommand.equals("b")) {
+          moveBackward();
+        } else if (lastCommand.equals("l")) {
+          turnLeft();
+        } else if (lastCommand.equals("r")) {
+          turnRight();
+        }
+        isMoving = true; // Set the movement flag to true again
+      }
     }
   }
 }
