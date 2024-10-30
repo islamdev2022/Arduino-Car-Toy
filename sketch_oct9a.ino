@@ -44,8 +44,6 @@ void loop() {
   // Check for Bluetooth commands
   if (Serial.available() > 0) {
     long distance = measureDistance();
-    Serial.println("Distance from obstacle: ");
-    Serial.println(distance);
     command = Serial.readStringUntil('\n');  // Read the command as a string until a newline character
     command.trim();  // Remove any extra spaces or newline characters
 
@@ -57,63 +55,69 @@ void loop() {
 
     // Handle movement commands
     if (command.equalsIgnoreCase("f")) {
-      moveForward();
+      long distance = measureDistance();
+    if (distance < obstacleThreshold) {
+      Serial.println("Obstacle too close, can't move forward");
+      }else{
+       moveForward();
+       Serial.print("Moving Forward ");
+      }
+      
       lastCommand = "f";  // Save the last command
     } else if (command.equalsIgnoreCase("b")) {
       moveBackward();
+       Serial.print("Moving Backward ");
       lastCommand = "b";  // Save the last command
     } else if (command.equalsIgnoreCase("l")) {
       turnLeft();
+       Serial.print("Moving Left");
       lastCommand = "l";  // Save the last command
     } else if (command.equalsIgnoreCase("r")) {
       turnRight();
+       Serial.print("Moving Right ");
       lastCommand = "r";  // Save the last command
     } else if (command.equalsIgnoreCase("s")) {
       Stop();
       isMoving = false;  // Stop the movement and disable the movement flag
     } 
-    // Speed control commands
-    else if (command.equals("0")) {
-      Speed = 100;
-    } else if (command.equals("1")) {
-      Speed = 140;
-    } else if (command.equals("2")) {
-      Speed = 153;
-    } else if (command.equals("3")) {
-      Speed = 165;
-    } else if (command.equals("4")) {
-      Speed = 178;
-    } else if (command.equals("5")) {
-      Speed = 191;
-    } else if (command.equals("6")) {
-      Speed = 204;
-    } else if (command.equals("7")) {
-      Speed = 216;
-    } else if (command.equals("8")) {
-      Speed = 229;
-    } else if (command.equals("9")) {
-      Speed = 242;
-    } else if (command.equalsIgnoreCase("q")) {
-      Speed = 255;  // Max speed
-    } else {
-      Serial.println("Unrecognized command");
-    }
+    // // Speed control commands
+    // else if (command.equals("0")) {
+    //   Speed = 100;
+    // } else if (command.equals("1")) {
+    //   Speed = 140;
+    // } else if (command.equals("2")) {
+    //   Speed = 153;
+    // } else if (command.equals("3")) {
+    //   Speed = 165;
+    // } else if (command.equals("4")) {
+    //   Speed = 178;
+    // } else if (command.equals("5")) {
+    //   Speed = 191;
+    // } else if (command.equals("6")) {
+    //   Speed = 204;
+    // } else if (command.equals("7")) {
+    //   Speed = 216;
+    // } else if (command.equals("8")) {
+    //   Speed = 229;
+    // } else if (command.equals("9")) {
+    //   Speed = 242;
+    // } else if (command.equalsIgnoreCase("q")) {
+    //   Speed = 255;  // Max speed
+    // } else {
+    //   Serial.println("Unrecognized command");
+    // }
 
     // Set the motor speed via the ENA and ENB pins
     analogWrite(ENA, Speed);  // Control speed of Motor 1 (Right motor)
-    analogWrite(ENB, Speed);  // Control speed of Motor 2 (Left motor)
+    analogWrite(ENB, 120);  // Control speed of Motor 2 (Left motor)
   }
 
   // Continuously check for obstacles, but only when the car is moving
   if (isMoving) {
     long distance = measureDistance();
-    Serial.println("Distance from obstacle: ");
-    Serial.println(distance);
     if (distance < obstacleThreshold) {
-      Serial.println("Obstacle too close, moving backward");
-      moveBackward();  // Move backward when an obstacle is detected
-      delay(1000);     // Move back for 1 second
-      Stop();          // Stop the car after moving backward
+      Serial.println("Obstacle too close, stoping");
+      Stop();          // Stop the car 
       isMoving = false; // Disable movement flag to stop moving after the obstacle is avoided
 
       // Recheck for obstacles and resume movement after avoiding
